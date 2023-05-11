@@ -1,0 +1,189 @@
+---
+title: 'Assignment #1 - Data Wrangling in R'
+author: "François d'Entremont"
+date: '2022-10-19'
+output:
+  pdf_document: default
+  default: default
+  html_document:
+    df_print: paged
+---
+
+First let's load all the packages needed for the assignment
+
+```{r}
+library(tidyverse)
+library(sf)
+library(tmap)
+library(sp)
+```
+
+Now let's load the data and take a look at it. The result is a tibble so we can
+use our libraries on them.
+```{r}
+# load world data using csv file
+world_data <- read_csv("world_data.csv")
+View(world_data)
+class(world_data)
+```
+
+# Task #1 - Subsetting Rows and Columns
+
+We are looking for countries located in Eastern Europe with male life expectancy
+greater than 68 years and have negative population growth.
+
+```{r}
+world_data_subset_piping <- world_data %>% filter(
+    Region == "East Europe", `Life Expectancy (Male)` > 68,
+    `Population Increase (% per year)` < 0) %>% select(
+      Country, Region, `Life Expectancy (Male)`,
+      `Population Increase (% per year)`)
+
+View(world_data_subset_piping)
+world_data_subset_piping
+```
+
+The chunk of code above pipes the data into the filter function and then pipes
+that data into a select function to display the relevant columns.
+
+# Task #2 - Summary Statistics at the Regional Scale
+
+Calculate the male to female life expectancy ratio and output a grouped summary
+of the average male to female life expectancy at the regional scale.
+
+```{r}
+world_data_m2fer <- world_data %>% group_by(Region) %>% summarise(
+  `Male to Female Life Expectancy Ratio` = mean(
+    `Life Expectancy (Male)` / `Life Expectancy (Female)`)) 
+
+View(world_data_m2fer)
+world_data_m2fer
+```
+
+# Task #3 - Mapping Spatial Data in R
+
+Loading the world dataset from the shapefile and viewing it
+```{r}
+world <- st_read("world.shp")
+
+View(world)
+class(world)
+```
+We see that the column with the country names doesn't match with the column
+Country in world_data so we'll change it so we can merge them together. We also
+see that it's a data.frame so we can't use our packages on it.
+
+```{r}
+# We must give the columns the same name before we join them
+names(world)[1] = "Country"
+
+View(world)
+```
+
+Let's check if the entries in the country columns match.
+```{r}
+sum(world$Country == world_data$Country) == 108
+```
+All 108 entries match!
+
+Now let's do the join! We can join a data.frame to a tibble using the inner_join
+function and the result will be a tibble.
+```{r}
+world_join <- inner_join(world_data, world)
+View(world_join)
+class(world_join)
+```
+Removing all the countries with male to female literacy rates and daily caloric
+intake values of zero with a single filter function
+
+```{r}
+world_join_filter <- filter(world_join, `Literacy Rate for Males (%)` != 0,
+                            `Literacy Rate for Females (%)` != 0,
+                            `Daily Calorie Intake` != 0)
+
+View(world_join_filter)
+```
+
+We see that there are now 59 entries. We removed almost half the countries.
+
+We will now calculate the population density for the remaining countries. We
+will add a column called Population Density. This column will store values in
+persons per square kilometre
+
+```{r}
+world_join_filter$`Population Density` <- 
+  world_join_filter$Population / world_join_filter$Area
+
+View(select(world_join_filter, Country, `Population Density`))
+```
+
+We will now calculate the male to female literacy ratio for the remaining 
+countries. We will add a column called Literacy Ratio.
+
+```{r}
+world_join_filter$`Literacy Ratio` <- 
+  world_join_filter$`Literacy Rate for Males (%)` / 
+  world_join_filter$`Literacy Rate for Females (%)`
+
+View(select(world_join_filter, Country, `Literacy Rate for Males (%)`, 
+            `Literacy Rate for Females (%)`, `Literacy Ratio`))
+```
+
+Now we need to find the top 5 countries in terms of population density, in 
+descending order.
+
+```{r}
+world_join_top5density <- select(head(arrange(
+  world_join_filter, desc(`Population Density`)),5),
+  Country, `Population Density`)
+
+world_join_top5density
+```
+
+Now we need to find the bottom 5 countries in terms of literacy ratio, in
+descending order.
+
+```{r}
+world_join_bot5m2flr <- select(head(arrange(
+  world_join_filter, desc(`Literacy Ratio`)),5), Country, `Literacy Ratio`)
+
+world_join_bot5m2flr
+```
+
+Now we will produce two choropleth graphs showing Population Density and Male 
+to Female Literacy
+
+Checking the class when using the st_as_sf function on our data
+
+```{r}
+class(st_as_sf(world_join_filter))
+```
+We must convert our dataset to an sf object to create the graphs.
+
+Below are two choropleth maps with one showing Male to Female Literacy ratio and the other
+showing Population Density.
+
+```{r}
+M2F_Literacy_Ratio_Graph <- tm_shape(st_as_sf(world_join_filter)) +
+  tm_fill("Literacy Ratio", title = "Male to Female Literacy Ratio", 
+          palette = c("#c8d4ef", "#94a3d2", "#6573b3", "#3a4593", "#051971")) +
+  tm_borders() + tm_layout("World Map")
+
+M2F_Literacy_Ratio_Graph
+```
+
+
+```{r}
+Population_Density_Graph <- tm_shape(st_as_sf(world_join_filter)) +
+  tm_fill("Population Density", title = "Population Density",
+          breaks = c(0, 50, 200, 800, 6000),
+          palette = c("#d5e8dd", "#9bd4b2", "#45a36b", "#0b4a25")) +
+  tm_borders() + tm_layout("World Map")
+
+Population_Density_Graph
+```
+
+
+
+
+

@@ -1,0 +1,109 @@
+Country,Population,Area,Landlocked,Religion,Region,Urban Population (%),Life Expectancy (Female),Life Expectancy (Male),Literacy Rate (%),Daily Calorie Intake,Birth Rate (per 1000),Death Rate (per 1000),Population Increase (% per year),Literacy Rate for Males (%),Literacy Rate for Females (%)
+Afghanistan,17250390,641869.188,Y,Muslim,Pacific/Asia,18,44,45,29,0,53,22,2.8,44,14
+Azerbaijan,5487866,85808.203,Y,Muslim,Middle East,54,75,67,98,0,23,7,1.4,100,100
+Armenia,3377228,29872.461,Y,Orthodox,Middle East,68,75,68,98,0,23,6,1.4,100,100
+Argentina,33796870,2781013,N,Catholic,Latin America,86,75,68,95,3113,20,9,1.3,96,95
+Australia,17827520,7706142,N,Protstnt,OECD,85,80,74,100,3216,15,8,1.4,100,100
+Austria,7755406,83738.852,Y,Catholic,OECD,58,79,73,99,3495,12,11,0.2,0,0
+Bahrain,575814,657.268,N,Muslim,Middle East,83,74,71,77,0,29,4,2.4,55,55
+Barbados,260627,439.942,N,Protstnt,Latin America,45,78,73,99,0,16,8,0.2,99,99
+Botswana,1446623,580011.188,Y,Tribal,Africa,25,66,60,72,2375,32,8,2.7,32,16
+Belgium,10032460,30479.609,N,Catholic,OECD,96,79,73,99,0,12,11,0.2,0,0
+Bangladesh,120732200,138507.203,N,Muslim,Pacific/Asia,16,53,53,35,2021,35,11,2.4,47,22
+Bosnia and Herzegovina,2656240,51403.379,N,Muslim,East Europe,36,78,72,86,0,14,6,0.7,0,0
+Bolivia,7648315,1090353,Y,Catholic,Latin America,51,64,59,78,1916,34,9,2.7,85,71
+Byelarus,10521400,206680.703,Y,Orthodox,East Europe,65,76,66,99,0,13,11,0.3,100,100
+Brazil,151525400,8507128,N,Catholic,Latin America,75,67,57,81,2751,21,9,1.3,82,80
+Bulgaria,8943258,110801.5,N,Orthodox,East Europe,68,75,69,93,0,13,12,-0.2,0,0
+Burundi,6011039,27253.869,Y,Catholic,Africa,5,50,46,50,1932,44,21,2.3,61,40
+Canada,28402320,9904700,N,Catholic,OECD,77,81,74,97,3482,14,8,0.7,0,0
+Cambodia,9129576,182612.297,N,Buddhist,Pacific/Asia,12,52,50,35,2166,45,16,2.9,48,22
+China,1281008318,9338902,N,Taoist,Pacific/Asia,26,69,67,78,2639,21,7,1.1,87,68
+Chile,13772710,742298.188,N,Catholic,Latin America,85,78,71,93,2581,23,6,1.7,94,93
+Cameroon,13218480,466306.688,N,Animist,Africa,40,58,55,54,2217,41,12,2.9,66,45
+Colombia,34414590,1141962,N,Catholic,Latin America,70,75,69,87,2598,24,6,2,88,86
+Costa Rica,3319438,51608.039,N,Catholic,Latin America,47,79,76,93,2808,26,4,2.3,93,93
+Central African Republic,3149545,621499.375,Y,Protstnt,Africa,47,44,41,27,2036,44,21,2.4,33,15
+Cuba,11102280,110443,N,Catholic,Latin America,74,78,74,94,0,17,7,0,95,93
+Denmark,4667750,42670.711,N,Protstnt,OECD,85,79,73,99,3628,12,12,0.1,0,0
+Dominican Republic,7759957,48445.039,N,Catholic,Latin America,60,70,66,83,2359,25,6,1.8,85,82
+Ecuador,10541820,256932,N,Catholic,Latin America,56,73,67,88,2531,26,6,2,90,86
+Egypt,56133430,982910.375,N,Muslim,Middle East,44,63,60,48,3336,29,9,2,63,34
+Ireland,5015975,69384.156,N,Catholic,OECD,57,78,73,98,3778,14,9,0.3,0,0
+Estonia,1590808,45544.559,N,Protstnt,East Europe,72,76,67,99,0,14,12,0.5,100,100
+El Salvador,5752470,20696.51,N,Catholic,Latin America,44,69,64,73,2317,33,7,2,76,70
+Ethiopia,53142970,1132328,Y,Muslim,Africa,12,54,51,24,1667,45,14,3.1,32,16
+Czech Republic,10321120,78495.156,Y,Catholic,East Europe,0,77,69,0,3632,13,11,0.2,0,0
+Finland,5031379,333796.906,N,Protstnt,OECD,60,80,72,100,3253,13,10,0.3,0,0
+France,57757060,546728.875,N,Catholic,OECD,73,82,74,99,3465,13,9,0.5,0,0
+"Gambia, The",936026,10677.6,N,Muslim,Africa,23,52,48,27,0,46,16,3.1,39,16
+Gabon,1561195,261688.703,N,Catholic,Africa,46,58,52,61,2383,28,14,1.5,74,48
+Georgia,5595552,69943.227,N,Orthodox,East Europe,56,76,69,99,0,16,9,0.8,100,100
+Germany,81436300,356108.812,N,Protstnt,OECD,85,79,73,99,3443,11,11,0.4,0,0
+Greece,10307460,131851.906,N,Orthodox,OECD,63,80,75,93,3825,10,10,0.8,98,89
+Guatemala,10321270,109501.797,N,Catholic,Latin America,39,67,62,55,2235,35,8,2.6,63,47
+Haiti,7044890,27156.939,N,Catholic,Latin America,29,47,43,53,2013,40,19,1.6,59,47
+Honduras,5367067,112852,N,Catholic,Latin America,44,70,65,73,2247,35,6,2.7,76,71
+Croatia,5004112,56287.789,N,Catholic,East Europe,51,77,70,97,0,11,11,-0.1,0,0
+Hungary,10310410,92782.203,Y,Catholic,East Europe,64,76,67,99,3644,12,13,-0.3,99,98
+Iceland,267240,101805.297,N,Protstnt,OECD,91,81,76,100,0,16,7,1.1,0,0
+Indonesia,189331200,1910842,N,Muslim,Pacific/Asia,29,65,61,77,2750,24,9,1.6,84,68
+India,894608700,3089282,N,Hindu,Pacific/Asia,26,59,58,52,2229,29,10,1.9,64,39
+Iran,64193450,1624760,N,Muslim,Middle East,57,67,65,54,3181,42,8,3.5,64,43
+Israel,5694890,20773.82,N,Jewish,Middle East,92,80,76,92,0,21,7,2.2,95,89
+Italy,57908880,300979.5,N,Catholic,OECD,69,81,74,97,3504,11,10,0.2,98,96
+Iraq,20941720,436421.906,N,Muslim,Middle East,72,68,65,60,2887,44,7,3.7,70,49
+Japan,125746300,373049.406,N,Buddhist,Pacific/Asia,77,82,76,99,2956,11,7,0.3,0,0
+Jordan,3950283,89274.594,N,Muslim,Middle East,68,74,70,80,2634,39,5,3.3,89,70
+Kenya,25835250,584428.688,N,Catholic,Africa,24,55,51,69,2163,42,11,3.1,80,58
+North Korea,22034990,122472.602,N,Buddhist,Pacific/Asia,60,73,67,99,0,24,6,1.8,99,99
+South Korea,43410900,98338.609,N,Protstnt,Pacific/Asia,72,74,68,96,0,16,6,1,99,99
+Kuwait,1639000,16983.971,N,Muslim,Middle East,96,78,73,73,3195,28,2,5.2,77,67
+Lebanon,2942959,10239.88,N,Muslim,Middle East,84,71,67,80,0,27,7,2,88,73
+Latvia,2690291,64298.891,N,Protstnt,East Europe,71,75,64,99,0,14,12,0.5,100,100
+Lithuania,3786560,64849.199,N,Catholic,East Europe,69,77,68,99,0,15,10,0.3,99,98
+Liberia,2902441,96296.031,N,Animist,Africa,45,57,54,40,2382,43,12,3.3,50,29
+Libya,5245515,1620515,N,Muslim,Middle East,82,65,62,64,3324,45,8,3.7,75,50
+Morocco,27767920,403859.812,N,Muslim,Africa,46,70,66,50,0,29,6,2.1,61,38
+Oman,2090308,309651.906,N,Muslim,Middle East,11,70,66,0,0,40,5,3.5,0,0
+Mexico,92380850,1962939,N,Catholic,Latin America,73,77,69,87,3052,28,5,1.9,90,85
+Malaysia,19626380,330269.594,N,Muslim,Pacific/Asia,43,72,66,78,2774,29,5,2.3,86,70
+Nigeria,97228750,912038.625,N,Muslim,Africa,35,57,54,51,2312,44,12,3.1,62,40
+Netherlands,15447470,35492.691,N,Catholic,OECD,89,81,75,99,3151,13,9,0.6,0,0
+Norway,4328519,316962.406,N,Protstnt,OECD,75,81,74,99,3326,13,10,0.4,0,0
+Nicaragua,4275103,129047.398,N,Catholic,Latin America,60,67,61,57,2265,35,7,2.7,57,57
+New Zealand,3528197,266820.188,N,Protstnt,OECD,84,80,73,99,3362,16,8,0.6,0,0
+Paraguay,4773464,400089.406,Y,Catholic,Latin America,48,75,72,90,2757,33,5,2.7,92,88
+Peru,24496400,1296912,N,Catholic,Latin America,70,67,63,85,2186,26,7,2,92,79
+Pakistan,126693000,877753.375,N,Muslim,Pacific/Asia,32,58,57,35,0,42,10,2.8,47,21
+Poland,37911870,310715.094,N,Catholic,East Europe,62,77,69,99,0,14,10,0.3,99,98
+Panama,2562045,74697.109,N,Catholic,Latin America,53,78,71,88,2539,25,5,1.9,88,88
+Portugal,9625516,92098.273,N,Catholic,OECD,34,78,71,85,0,12,10,0.4,89,82
+Romania,23540550,236654,N,Orthodox,East Europe,54,75,69,96,3155,14,10,0.1,0,0
+Philippines,65981120,298133.812,N,Catholic,Pacific/Asia,43,68,63,90,2375,27,7,1.9,90,90
+Russia,151827600,16851940,N,Orthodox,East Europe,74,74,64,99,0,13,11,0.2,100,100
+Rwanda,7934396,25228.23,Y,Catholic,Africa,6,46,43,50,1971,49,21,2.8,64,37
+Saudi Arabia,18099990,1960175,N,Muslim,Middle East,77,70,66,62,2874,38,6,3.2,73,48
+South Africa,40634126,1221943.449,N,NA,Africa,49,68,62,76,0,34,8,2.6,0,0
+Senegal,8116554,196910.703,N,Muslim,Africa,40,58,55,38,2369,43,12,3.1,52,25
+Singapore,2824024,526.041,N,Taoist,Pacific/Asia,100,79,73,88,3198,16,6,1.2,93,84
+Somalia,9951515,639065.125,N,Muslim,Africa,24,55,54,24,1906,46,13,3.2,36,14
+Spain,39267780,505674.406,N,Catholic,OECD,78,81,74,95,3572,11,9,0.3,97,93
+Sweden,8728217,443799.688,N,Protstnt,OECD,84,81,75,99,2960,14,11,0.5,0,0
+Syria,14045470,187937,N,Muslim,Middle East,50,68,65,64,0,44,6,3.7,78,51
+Switzerland,6713839,41178.398,Y,Catholic,OECD,62,82,75,99,3562,12,9,0.7,0,0
+United Arab Emirates,2061800,71234.406,N,Muslim,Middle East,81,74,70,68,0,28,3,4.8,70,63
+Thailand,57323780,515144,N,Buddhist,Pacific/Asia,22,72,65,93,2316,19,6,1.4,96,90
+Turkey,61300930,779986.188,N,Muslim,Middle East,61,73,69,81,3236,26,6,2,90,71
+Taiwan,21465881,36346.09,N,Buddhist,Pacific/Asia,71,78,72,91,0,15.6,0,0.9,0,0
+"Tanzania, United Republic of",28386270,944976.875,N,Animist,Africa,21,45,41,46,2206,46,19,2.5,62,31
+Uganda,18144360,243049.906,Y,Catholic,Africa,11,43,41,48,2153,49,24,2.4,62,35
+United Kingdom,56420180,243137.203,N,Protstnt,OECD,89,80,74,99,3149,13,11,0.2,0,0
+Ukraine,53164920,596040.875,N,Orthodox,East Europe,67,75,65,97,0,12,13,0.1,100,100
+United States,258833000,9450720,N,Protstnt,OECD,75,79,73,97,3671,15,9,1,97,97
+Burkina Faso,10164690,273719.188,Y,Animist,Africa,15,50,47,18,2288,47,18,2.8,28,9
+Uruguay,3084641,178140.797,N,Catholic,Latin America,89,77,71,96,2653,17,10,0.8,97,96
+Uzbekistan,20841790,445711.312,Y,Muslim,Middle East,41,72,65,97,0,30,7,2.1,100,100
+Venezuela,19857850,916560.5,N,Catholic,Latin America,91,76,70,88,2582,26,5,2.2,90,87
+Vietnam,71215210,327122.594,N,Buddhist,Pacific/Asia,20,68,63,88,2233,27,8,1.8,93,83
+Zambia,8778681,754772.688,Y,Protstnt,Africa,42,45,44,73,2077,46,18,2.8,81,65
