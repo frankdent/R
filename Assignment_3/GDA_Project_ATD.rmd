@@ -1,0 +1,1126 @@
+---
+title: "GDAA 1001 Fundamentals of Spatial Data Analytics"
+subtitle: "Final Group Project"
+author: "François d'Entremont, Cindy Lu, George Lee Tannous"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    df_print: paged
+    theme: cerulean
+    toc: true
+    toc_depth: 4
+---
+
+```{css, echo=FALSE}
+h1.title {
+  text-align: center;
+  font-size: 26px
+}
+h1 {
+  text-align: center;
+  font-size: 24px
+}
+h2 {font-size: 20px}
+h3.subtitle {
+  text-align: center;
+  font-size: 20px
+}
+h3 {
+  text-align: center;
+  font-size: 18px
+}
+h4.author {
+  text-align: center;
+  font-size: 16px
+}
+h4.date {
+  text-align: center;
+  font-size: 16px
+}
+h4 {font-size: 16px}
+body {font-size: 14px}
+```
+
+#### R Package Required
+```{r class.source = 'fold-show', message = F, warning= F}
+library(tidyverse)
+library(caret)
+library(rpart)
+library(ggplot2)
+library(GGally)
+library(gridExtra)
+library(plotly)
+library(knitr)
+library(kableExtra)
+```
+
+# Introduction
+
+In this project, we will use data science to explore the inner workings of the Canadian labor market. By leveraging the rich information contained in the Labour Force Survey (LFS), a monthly survey conducted by Statistics Canada, we will uncover insights and trends that can help us understand the current state of the labor market in Canada.
+
+We will use R to clean and transform the LFS data, and then use exploratory data analysis to uncover patterns and trends hidden within the data. Our goal is to use predictive modeling to predict our target variable, "NOC_10," which refers to a worker's occupation at their main job. This will allow us to classify and understand the data in a new way.
+
+By the end of this project, we will have a greater understanding of the Canadian labor market and the ability to use data science to uncover valuable insights.
+
+---
+
+# Data Preparation
+
+## About the data
+
+The Labour Force Survey (LFS) is a monthly survey by Statistics Canada which measures the current state of the Canadian labour market. The dataset used in this Project is released as a public use microdata file containing non-aggregated data for numerous variables from the October 2022 LFS.
+
+```{r message = F, warning=F}
+# set working directory, if required
+# setwd(choose.dir())
+# import dataset
+lfs <- read_csv('raw_data.csv') 
+```
+
+The raw dataset contains 110,059 records and 60 variables. For this project, we will first focus on 12 of the variables and only the records with valid values (i.e. remove records with null values). Table 1 below shows a summary of the 12 variables.
+
+#### Table 1 - Labor Force Survey Dataset Variables
+```{r message = F, warning=F}
+# Subset dataset and remove rows with null values
+lfs <- lfs[,c(5,7,9:11,16:18,23,34,36,37)]
+lfs <- na.omit(lfs)
+
+# Show variable meanings
+text_tbl <- data.frame(
+  Variables = c("AGE_12", "EDUC", "HRLYEARN", "IMMIG", "MARSTAT", "NAICS_21", "NOC_10", "PROV", "SEX", "TENURE", "UHRSMAIN", "UNION"),
+  Meanings = c("Age group of respondent (increments of 5 year)", "Highest educational attainment", "Hourly wages", "Immigrant status", "Marital status of respondent", "Industry (by North American Industry Classification System)", "Occupation (by National Occupation Classification)", "Province", "Sex of respondent", "Job tenure with current employer in months", "Usual hours worked per week at main job", "Union status")
+)
+
+kbl(text_tbl) %>%
+  kable_paper(full_width = F) %>%
+  column_spec(1, bold = T, border_right = T, background = "#fda172") %>%
+  column_spec(2, background = "oldlace")
+```
+
+The variable data types are stored as numeric or character in the original dataset. Only the `UHRSMAIN`, `TENURE` and `HRLYEARN` are numerical variables, and the remaining ones need to be converted to categorical data types. For ease of interpretation and reference of the data, the variable levels are renamed.
+
+Since the `HRLYEARN` variable is in the format of cents per hour in the original dataset, we will change it to dollars per hour. A similar approach is taken for the `UHRSMAIN` variable, where the values are recalculated from 'implied decimal' to actual hours. Table 2 below shows a preview of first 6 rows of the dataset, followed by a summary of the dataset that is ready for exploratory data analysis.
+
+```{r message = F, warning=F}
+# Factorize variables
+lfs <- lfs %>% mutate_at(c(1:8, 12), as.factor)
+
+# Rename variable levels
+lfs$PROV <- recode_factor(lfs$PROV,'10'='NL','11'='PEI','12'='NS','13'='NB','24'='QC',
+                                 '35'='ON','46'='MB','47'='SK','48'='AB','59'='BC')
+lfs$AGE_12 <- recode_factor(lfs$AGE_12,
+                                   '01'='15-19yrs','02'='20-24yrs','03'='25-29yrs',
+                                   '04'='30-34yrs','05'='35-39yrs','06'='40-44yrs',
+                                   '07'='45-49yrs','08'='50-54yrs','09'='55-59yrs',
+                                   '10'='60-64yrs','11'='65-69yrs','12'='70andUp')
+levels(lfs$SEX)<-list('Male'='1','Female'='2')
+levels(lfs$MARSTAT)<-list('Married'='1', 'Common-law'='2', 'Widowed'='3',
+                          'Separated'='4', 'Divorced'='5', 'Single'='6')
+levels(lfs$EDUC)<-list('0-8yrs'='0', 'HS_Some'='1', 'HS_Grad'='2',
+                       'PSE_Some'='3', 'PSE_Grad'='4', 'Bachelors'='5','>Bachelors'='6')
+levels(lfs$IMMIG)<-list('Immigrant_New'='1', 'Immigrant>10yrs'='2', 'Non-Immigrant'='3')
+levels(lfs$UNION)<-list('Union'='1', 'Union_nonMember'='2','Non-Union'='3')
+levels(lfs$NOC_10)<-list('Management'='01','Business, finance, administration'='02',
+                         'Natural & applied sciences'='03','Health'='04',
+                         'Education, law and social, community & government'='05',
+                         'Art, culture, recreation & sport'='06',
+                         'Sales & service'='07','Trades, transport & equipment operators'='08',
+                         'Natural resources & agriculture'='09','Manufacturing & utilities'='10')
+levels(lfs$NAICS_21)<-list('Agriculture'='01',
+                         'Forestry and logging and support activities for forestry'='02',
+                         'Fishing, hunting and trapping'='03',
+                         'Mining, quarrying, and oil and gas extraction'='04',
+                         'Utilities'='05',
+                         'Construction'='06',
+                         'Manufacturing - durable goods'='07',
+                         'Manufacturing - non-durable goods'='08',
+                         'Wholesale trade'='09',
+                         'Retail trade'='10',
+                         'Transportation and warehousing' = '11',
+                         'Finance and insurance' = '12',
+                         'Real estate and rental and leasing' = '13',
+                         'Professional, scientific and technical services' = '14',
+                         'Business, building and other support services' = '15',
+                         'Educational services' = '16',
+                         'Health care and social assistance' = '17',
+                         'Information, culture and recreation' = '18',
+                         'Accommodation and food services' = '19',
+                         'Other services (except public administration)' = '20',
+                         'Public administration' = '21')
+
+# Change units of HRLYEARN and UHRSMAIN
+lfs <- lfs %>% mutate(HRLYEARN = HRLYEARN / 100, UHRSMAIN = UHRSMAIN / 10)
+```
+
+#### Table 2 - First 6 rows of the Labour Force Survey Dataset
+```{r message = F, warning=F}
+kbl(head(lfs)) %>%
+  kable_paper(full_width = T)
+```
+
+#### Table 3 - Labour Force Survey Data Summary
+```{r message = F, warning=F}
+str(lfs)
+```
+
+---
+
+# Exploratory Data Analysis
+
+Among the 12 variables within the dataset, we are interested in predicting occupation type based on other variables. In the following steps, we will explore relationships between `NOC_10` (our target variable) and other variables, determine if the target variable is appropriate, and identify variables that may be significant in the subsequent predictive modelling. 
+
+## Numerical Variables
+
+The density plot below shows the distribution of the hourly earning, among workers in the current state of the Canadian labour market. The blue curve on the overall plot shows the shape of distribution, with the highest density at around $18-25 per hour.
+
+#### Figure 1 - Density plot for `HRLYEARN`
+```{r message = F, warning=F, out.width = "90%"}
+ggplot(lfs, aes(x = HRLYEARN)) +
+  geom_density(fill = "#00A6ED") +
+  xlab("Earnings ($/Hour)") +
+  ylab("Density") +
+  ggtitle("Hourly Earnings Data Distribution") +
+  scale_color_manual(values = c("#00A6ED", "#FF5B5B")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20, color = "#FF5B5B"),
+        axis.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.text = element_text(size = 12, color = "#FF5B5B")) +
+  labs(subtitle = "Data from the October 2022 Labour Force Survey") +
+  theme(panel.grid = element_line(color = "#FF5B5B", size = 0.5))+
+  geom_vline(aes(xintercept=mean(HRLYEARN)), color="blue", linetype="dashed", size=1)
+```
+
+Since some people make absurd amounts of money, we decided to remove outliers using the 1.5 IQR
+rule, meaning any data points that are more than 1.5*IQR above the
+third quartile or below the first quartile will get removed from the dataset. 
+This change normalizes the data, and allows further evaluation to concentrate within the majority.
+```{r message = F, warning=F}
+# Normalize HRLYEARN values
+iqr <- 40 - 20
+lower_boundary <- 20 - 1.5 * iqr
+upper_boundary <- 40 + 1.5 * iqr
+lfs <- lfs %>% filter(HRLYEARN <= upper_boundary & HRLYEARN >= lower_boundary)
+```
+
+#### Figure 2 - Density plot for `HRLYEARN` regraphed after removing outliers
+```{r message = F, warning=F, out.width = "90%"}
+# Density plot after removing outliers
+ggplot(lfs, aes(x = HRLYEARN)) +
+  geom_density(fill = "#00A6ED") +
+  xlab("Earnings ($/Hour)") +
+  ylab("Density") +
+  ggtitle("Hourly Earnings Data Distribution") +
+  scale_color_manual(values = c("#00A6ED", "#FF5B5B")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20, color = "#FF5B5B"),
+        axis.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.text = element_text(size = 12, color = "#FF5B5B")) +
+  labs(subtitle = "Data from the October 2022 Labour Force Survey") +
+  theme(panel.grid = element_line(color = "#FF5B5B", size = 0.5))+
+  geom_vline(aes(xintercept=mean(HRLYEARN)), color="blue", linetype="dashed", size=1)
+```
+
+The histogram in Figure 3 below shows that the majority of weekly hours worked fall between 38-40 hours per week, with a peak at around 40 hours. The mean of approximately 35 is to the left of the peak meaning the distribution is slightly left-skewed. The plot indicates that there are relatively few observations with weekly hours above 40 per week, and a minimal number of observations with hours worked below 30.
+
+#### Figure 3 - Histogram for `UHRSMAIN`
+```{r message = F, warning=F, out.width = "90%"}
+ggplot(lfs, aes(x = UHRSMAIN)) +
+  geom_histogram(fill = "#00A6ED", color = "#0072C6", binwidth = 2) +
+  xlab("Hours/week") +
+  ylab("Frequency") +
+  ggtitle("Distribution of Weekly Work Hours") +
+  scale_color_manual(values = c("#00A6ED", "#FF5B5B")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20, color = "#FF5B5B"),
+        axis.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.text = element_text(size = 12, color = "#FF5B5B")) +
+  labs(subtitle = "Data from the October 2022 Labour Force Survey") +
+  theme(panel.grid = element_line(color = "#FF5B5B", size = 0.5))+
+  geom_vline(aes(xintercept=mean(UHRSMAIN)), color="blue", linetype="dashed", size=1)
+```
+
+The density plot in Figure 4 below shows the distribution of tenure for individuals employed by a company or organization. The majority of individuals have been employed for between 0 and 5 years, with an average tenure of 18 months in this range. The plot then shows a decline in the density of individuals with longer tenure. This data is capped at 240 months (or 20 years), which is why there is a second peak at 240. This information can be useful for understanding the overall tenure of employees within the occupation.
+
+#### Figure 4 - Density plot for `TENURE`
+```{r message = F, warning=F, out.width = "90%"}
+ggplot(lfs, aes(x = TENURE)) +
+  geom_density(fill = "#00A6ED") +
+  xlab("Months") +
+  ylab("Density") +
+  ggtitle("Tenure in Months") +
+  scale_color_manual(values = c("#00A6ED", "#FF5B5B")) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 20, color = "#FF5B5B"),
+        axis.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.title = element_text(size = 14, color = "#FF5B5B"),
+        legend.text = element_text(size = 12, color = "#FF5B5B")) +
+  scale_fill_gradient(low = "#00A6ED", high = "#0072C6") +
+  labs(subtitle = "Data from the October 2022 Labour Force Survey") +
+  theme(panel.grid = element_line(color = "#FF5B5B", size = 0.5))+
+  geom_vline(aes(xintercept=mean(TENURE)), color="blue", linetype="dashed", size=1)
+```
+
+
+#### Figure 5 - Scatter Plot of `UHRSMAIN` vs. `HRLYEARN`
+```{r message = F, warning=F, out.width = "90%"}
+lfs_scatter <- lfs %>%
+  ggplot(aes(HRLYEARN,UHRSMAIN)) +
+  geom_point(alpha=0.2, size=1.5, color="navy") +
+  labs(y="Hours Worked Per Week", x="Hourly Earnings ($)", title="Hours Worked vs. Hourly Earnings")+
+  geom_smooth(method='lm', color = 'red')
+lfs_scatter
+```
+
+The scatterplot shows the hourly earnings ($) on the x-axis and the hours worked per week on the y-axis. We can conclude from this graph that the hourly earnings have minimal effect on the amount of hours worked. The Linear Regression Line in red almost has a slope of close to 0 meaning there is minimal correlation between the two variables.  We can conclude from this graph that the hourly earnings have minimal effect on the number of hours worked per week but that they could both be good as predictors in our model as they can predict independently.
+
+
+## Categorical Variables and Covariation
+
+#### Figure 6 - Data Distribution of `NOC_10` and `NAICS_21`
+```{r message = F, warning = F, out.width = "100%", fig.height = 7.5}
+bar <- lfs %>% 
+  ggplot(aes(y=NOC_10, fill=NAICS_21))+
+  geom_bar(position=position_stack(reverse=TRUE), color='grey',width = .5)+
+  ggtitle("Data Distribution of Occupation and Industry")+
+  ylab ("Occupation")+
+  xlab("Count by Industry")+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  theme(plot.title = element_text(size=14,face="bold"),
+        axis.title=element_text(size=12,face="bold"))
+ggplotly(bar)
+```
+
+As shown in Figure 6 above, it is evident that the survey records are not well distributed across occupation types, with more than 10 times the amount of survey subjects working in the sales and service occupation in comparison to occupations in art, culture, recreation and sport.
+
+There seem to be some patterns between occupation and industry. For example, 4726 people with health occupations out of 4765 work in the health care and social assistance industry, and most people working in the retail trade industry have sales and service occupations.
+
+#### Figure 7 - `NOC_10` and `UNION` Comparison
+```{r message = F, warning=F, out.width = "90%"}
+barchart_union <- ggplot(lfs, aes(x = NOC_10, fill = UNION)) +
+  geom_bar(aes(y = (..count..) / sum(..count..)), position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20))+
+  ylab("Percentage") + xlab("Occupation") +
+  ggtitle("Occupation and Union Comparison") + coord_flip() + 
+  theme(plot.title = element_text(size=14,face="bold"),
+        axis.title=element_text(size=10,face="bold"))
+ggplotly(barchart_union)
+```
+
+The barchart in Figure 7 above shows the percentage of union members in each occupation. We can see that there is a higher percentage of union members in "Health occupations"
+and "Occupations in education, law and social, community and government services". This could be good for our predictive model because it adds separability.
+
+The boxplot in Figure 8 below shows the Hourly Earnings for each industry, divided by male and
+female. We can see that "management occupations" earn the most money, followed by
+"natural and applied sciences and related occupations" and "health occupations". We
+also see that men earn, on average, more money than woman. Both factors add separability to the predictive model.
+
+#### Figure 8 - `HRLYEARN` per `NOC_10` Grouped by `SEX`
+```{r message = F, warning=F, out.width = "90%"}
+boxplot_HRLYEARN <- ggplot(lfs, aes(x=NOC_10, y=HRLYEARN, fill=SEX)) + 
+  geom_boxplot(width = .8) + ylab("Hourly Earnings ($)") + xlab('Occupation') +
+  labs(title = "Hourly Earnings per Occupation Type Divided By Sex") + 
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20))+
+  scale_fill_manual(values = c("#8ECEFD", "#F88B9D")) + coord_flip()+
+  guides(fill = guide_legend(reverse = TRUE))+ 
+      scale_y_continuous(n.breaks = 7) + 
+  theme(plot.title = element_text(size=14,face="bold"),
+        axis.title=element_text(size=12,face="bold"))
+boxplot_HRLYEARN
+```
+
+
+The heatmap below (Figure 9) allows us to visualize our data in the form of hot and cold spots
+using a warm-to-cool color scheme. The areas in floral white indicate an area of
+low frequency and the areas in dark orange indicate an area of high frequency.
+We can see that our dataset contains a high frequency of post-secondary graduates
+and a high frequency of people working in sales and service. In addition, a high percentage of high school graduates work in sales and service, which can be a key predictor for the classification model. 
+
+#### Figure 9 - `NOC_10` and `EDUC` Comparison
+```{r message = F, warning=F, out.width = "90%"}
+heatmap_edu <- lfs %>%
+  select(NOC_10, EDUC) %>% 
+  xtabs(~., data = .) %>% 
+  data.frame() %>% 
+  ggplot(aes(NOC_10, EDUC, fill = Freq)) +
+  geom_tile(col = "white")+
+  labs(title = "Occupation and Education Comparison",
+       x = "Occupation", y = "Education") +
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20))+
+  scale_fill_gradient(low = "floralwhite", high = "darkorange3") +
+  coord_flip() + theme(plot.title = element_text(size=14,face="bold"),
+                       axis.title=element_text(size=12,face="bold"),
+                       axis.text.x = element_text(angle=-45, hjust=-0.1))
+options(repr.plot.width = 40, repr.plot.height = 8)
+heatmap_edu
+```
+
+Note that since there is a high variation of records across different occupations, the 'heated' areas in the heatmap are biased towards those with higher number of records. For example the number of records with occupation in art, culture, recreation and sport is much lower than the other occupations, which leads to low frequencies in the heatmap. 
+
+
+#### Figure 10 - `NOC_10` and `PROV` Comparison
+```{r message = F, warning=F, out.width = "90%"}
+heatmap_prov <- lfs %>%
+  select(NOC_10, PROV) %>% 
+  xtabs(~., data = .) %>% 
+  data.frame() %>% 
+  ggplot(aes(NOC_10, PROV, fill = Freq)) +
+  geom_tile(col = "white")+
+  labs(title = "Occupation and Province Comparison",
+       x = "Occupation", y = "Province") +
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20))+
+  scale_y_discrete(limits=rev)+
+  scale_fill_gradient(low = "floralwhite", high = "darkorange3") +
+  coord_flip() + theme(plot.title = element_text(size=14,face="bold"),
+                       axis.title=element_text(size=12,face="bold"))
+options(repr.plot.width = 40, repr.plot.height = 8)
+heatmap_prov
+```
+
+As seen in Figure 10, there is a higher frequency of records in Quebec and Ontario. However there is no prominent distinction in the frequency of occupations among different provinces. The frequency variation is mainly due to uneven distribution of records. 
+
+---
+
+# Predictive Modelling
+
+In this section, we will explore various classification algorithms to predict the target variable - 'Occupation'(`NOC_10`), based on other variables. As noted in Figure 6, the survey records are not well distributed across occupation types. In addition, over 50,000 records will take significant compute time to perform predictive modelling. For the purpose of this demonstration, we will reduce the total records by randomly sampling survey records in 2 ways:
+
+* Method 1: Sample 10,000 records randomly from the entire data set.
+* Method 2: Sample 1,000 records randomly from each occupation type, and combine them to constitute a dataset of 10,000 records in total.
+
+Method 1 aims to maintain the distribution of dataset, but may lose training data for occupation types with low count of records. The opposite applies to method 2 where there are equal amounts of training data for each occupation type, but the true data distribution is not reflected. 
+
+#### Figure 11 - Data Distribution by `NOC_10` (Original vs Resample Method 1)
+```{r message = F, warning=F, out.width = "90%"}
+# Data Sampling Method 1
+set.seed(10)
+lfs_sample1 <- lfs %>% sample_n(10000) %>% select(-c('PROV'))
+lfs_sample1 <- as.data.frame(lfs_sample1)
+
+ggplot()+
+   geom_bar(data = lfs, aes(x=NOC_10, fill = "Original"))+
+   geom_bar(data = lfs_sample1, aes(x=NOC_10, fill = "Sample"))+
+   ggtitle("Data Distribution by Occupation")+
+   xlab ("")+
+   ylab("Count")+
+   scale_x_discrete(labels=function(x) str_wrap(x,width=20))+
+   theme(plot.title = element_text(size=14,face="bold"),
+         axis.title=element_text(size=12,face="bold"),
+         axis.text.x = element_text(angle=-45, hjust=-0.1),
+         legend.title = element_blank())
+
+# Data Sampling Method 2
+set.seed(10)
+df1 <- lfs %>% 
+  filter(NOC_10 == 'Management') %>% 
+  sample_n(1000)
+df2 <- lfs %>% 
+  filter(NOC_10 == 'Business, finance, administration') %>% 
+  sample_n(1000)
+df3 <- lfs %>% 
+  filter(NOC_10 == 'Natural & applied sciences') %>% 
+  sample_n(1000)
+df4 <- lfs %>% 
+  filter(NOC_10 == 'Health') %>% 
+  sample_n(1000)
+df5 <- lfs %>% 
+  filter(NOC_10 == 'Education, law and social, community & government') %>% 
+  sample_n(1000)
+df6 <- lfs %>% 
+  filter(NOC_10 == 'Art, culture, recreation & sport') %>% 
+  sample_n(1000)
+df7 <- lfs %>% 
+  filter(NOC_10 == 'Sales & service') %>% 
+  sample_n(1000)
+df8 <- lfs %>% 
+  filter(NOC_10 == 'Trades, transport & equipment operators') %>% 
+  sample_n(1000)
+df9 <- lfs %>% 
+  filter(NOC_10 == 'Natural resources & agriculture') %>% 
+  sample_n(1000)
+df10 <- lfs %>% 
+  filter(NOC_10 == 'Manufacturing & utilities') %>% 
+  sample_n(1000)
+
+lfs_sample2 <- bind_rows(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, .id = NULL) 
+lfs_sample2 <- lfs_sample2 %>% select(-c('PROV')) %>% as.data.frame()
+```
+
+## Data Partition
+
+Prior to running the predictive classification models, the dataset is first separated into training and validation sets. 80% of the records are partitioned as training set based on the target variable (`NOC_10`), and the remaining 20% as validation set. Table 4 below shows a summary of record counts in each data set. 
+
+#### Table 4 - Validation Record Counts
+```{r message = F, warning=F}
+# Separate dataset into training and validation sets
+set.seed(9)
+inTraining_1 <- createDataPartition(lfs_sample1$NOC_10,p=0.8,list=FALSE)
+training_1 <- lfs_sample1[inTraining_1,]
+validation_1 <- lfs_sample1[-inTraining_1,]
+
+inTraining_2 <- createDataPartition(lfs_sample2$NOC_10,p=0.8,list=FALSE)
+training_2 <- lfs_sample2[inTraining_2,]
+validation_2 <- lfs_sample2[-inTraining_2,]
+
+# get counts for NOC_10 distribution in training and validation datasets
+training_count1 <- tapply(training_1$NOC_10,training_1$NOC_10,length)
+training_count2 <- tapply(training_2$NOC_10,training_2$NOC_10,length)
+
+validation_count1 <- tapply(validation_1$NOC_10,validation_1$NOC_10,length)
+validation_count2 <- tapply(validation_2$NOC_10,validation_2$NOC_10,length)
+
+count <- as_data_frame(training_count1)
+count$Occupation <- levels(lfs$NOC_10)
+count$Validation_Method1 <- validation_count1
+count$Training_Method2 <- training_count2
+count$Validation_Method2 <- validation_count2
+count %>% rename('Training_Method1'='value') %>% 
+  select('Occupation', 'Validation_Method1','Validation_Method2')
+```
+
+## Classification Algorithms
+
+Prior to running the models, the algorithm parameters are set using 10-fold cross validation. Through exploratory data analysis, it was determined that there is minimal relationship between `PROV` and our target variable. Although some relationships exist between `NOC_10` and other variables, they were inconclusive and worth exploring in the predictive models. All variables except for `PROV` are used to train and predict the Occupation within the dataset. Below is a list of variables used in training models.
+```{r message = F, warning=F}
+# Set training algorithm parameters
+control <- trainControl(method = 'cv',number=10)
+metric <- 'Accuracy'
+# Display variables used in the model
+colnames(lfs_sample1)
+```
+
+5 preliminary machine learning algorithms were run, including:
+
+* Linear Discriminant Analysis (LDA)
+* K-Nearest Neighbors Classifiers (KNN)
+* Classification & Regression Tree (CART)
+* Support Vector Machine (SVM)
+* Random Forest (RF)
+
+All algorithms ran successfully in R, however the Random Forest produced 100% accuracy in the corresponding confusion matrices, which is unlikely. Therefore only the mean accuracy of the RF model will be evaluated and compared against other models. 
+
+```{r message = F, warning=F}
+# LDA
+# Method 1
+set.seed(5)
+fit.lda1 <-train(NOC_10~.,data=lfs_sample1,method='lda',metric=metric,trControl=control)
+predictions_lda1 <- predict(fit.lda1, validation_1)
+cm_lda1 <- confusionMatrix(predictions_lda1, as.factor(validation_1$NOC_10))
+
+# Method 2
+set.seed(5)
+fit.lda2 <-train(NOC_10~.,data=lfs_sample2,method='lda',metric=metric,trControl=control)
+predictions_lda2 <- predict(fit.lda2, validation_2)
+cm_lda2 <- confusionMatrix(predictions_lda2, as.factor(validation_2$NOC_10))
+
+# KNN
+# Method 1
+set.seed(5)
+fit.knn_1 <-train(NOC_10~.,data=lfs_sample1,method='knn',metric=metric,trControl=control)
+predictions_knn_1 <- predict(fit.knn_1, validation_1)
+cm_knn_1 <- confusionMatrix(predictions_knn_1, as.factor(validation_1$NOC_10))
+
+# Method 2
+set.seed(5)
+fit.knn_2 <-train(NOC_10~.,data=lfs_sample2,method='knn',metric=metric,trControl=control)
+predictions_knn_2 <- predict(fit.knn_2, validation_2)
+cm_knn_2 <- confusionMatrix(predictions_knn_2, as.factor(validation_2$NOC_10))
+
+# CART
+# Method 1
+set.seed(5)
+fit.cart1 <-train(NOC_10~.,data=lfs_sample1,method='rpart',metric=metric,trControl=control)
+predictions_cart1 <- predict(fit.cart1, validation_1)
+cm_cart_1 <- confusionMatrix(predictions_cart1, as.factor(validation_1$NOC_10))
+
+# Method 2
+set.seed(5)
+fit.cart_2 <-train(NOC_10~.,data=lfs_sample2,method='rpart',metric=metric,trControl=control)
+predictions_cart_2 <- predict(fit.cart_2, validation_2)
+cm_cart_2 <- confusionMatrix(predictions_cart_2, as.factor(validation_2$NOC_10))
+
+# SVM
+# Method 1
+start_time <- Sys.time()
+set.seed(5)
+fit.svm1 <-train(NOC_10~.,data=lfs_sample1,method='svmRadial',metric=metric,trControl=control)
+predictions_svm1 <- predict(fit.svm1, validation_1)
+end_time <- Sys.time()
+cm_svm_1 <- confusionMatrix(predictions_svm1, as.factor(validation_1$NOC_10))
+run_time <- end_time - start_time
+
+# Method 2
+set.seed(5)
+fit.svm_2 <-train(NOC_10~.,data=lfs_sample2,method='svmRadial',metric=metric,trControl=control)
+predictions_svm_2 <- predict(fit.svm_2, validation_2)
+cm_svm_2 <- confusionMatrix(predictions_svm_2, as.factor(validation_2$NOC_10))
+
+
+# RF
+# Method 1
+set.seed(5)
+fit.rf_1 <-train(NOC_10~.,data=lfs_sample1,method='rf',metric=metric,trControl=control)
+predictions_rf_1 <- predict(fit.rf_1, validation_1)
+cm_rf_1 <- confusionMatrix(predictions_rf_1, as.factor(validation_1$NOC_10))
+
+# Method 2
+set.seed(5)
+fit.rf_2 <-train(NOC_10~.,data=lfs_sample2,method='rf',metric=metric,trControl=control)
+predictions_rf_2 <- predict(fit.rf_2, validation_2)
+cm_rf_2 <- confusionMatrix(predictions_rf_2, as.factor(validation_2$NOC_10))
+
+```
+
+---
+
+# Evaluation of Results
+
+## Model Accuracy
+
+As shown in Figure 12 below, the Random Forest with re-sample method 2 produced the most accurate predictive model, followed by the Support Vector Machine. However, there is no consistent result regarding the data sample methods, i.e. training equal number of records for each `NOC_10` levels did not consistently lead to more accurate model output, or vice versa. The model performances are further evaluated through the confusion matrices in the next section.
+
+#### Figure 12 - Comparison of Classification Accuracy
+```{r message = F, warning=F, out.width='80%'}
+comparison <- resamples(list(lda1=fit.lda1, cart1=fit.cart1, knn1=fit.knn_1,  
+                             lda2=fit.lda2, cart2=fit.cart_2, knn2=fit.knn_2,
+                             svm1=fit.svm1, svm2=fit.svm_2, rf1=fit.rf_1, rf2=fit.rf_2))
+
+
+comparison <- as.data.frame(comparison)
+
+comparison_tidy <- comparison %>% 
+  pivot_longer(names_to = "Model", values_to = "Accuracy", -Resample) %>% 
+  group_by(Model) %>% 
+  summarise(Mean_Accuracy = mean(Accuracy))
+
+mean_acc <- comparison_tidy %>% 
+  ggplot(aes(x=fct_reorder(Model, Mean_Accuracy), y=Mean_Accuracy))+
+  geom_bar(stat = "identity")+
+  stat_summary(fun.y=mean, geom='text', color='white',hjust=1.2, aes(label=round(..y.., digits=2)))+
+  coord_flip()+
+  xlab("Model")+
+  ylab("Mean Accuracy")+
+  theme(text = element_text(size = 12))
+mean_acc
+```
+
+## Confusion Matrices
+
+Confusion matrix is used as a performance measurement for machine learning classification. Generally, the higher number of correct classifications, the more accurate the model. In the tables below, all green cells indicate the number of correct classifications (i.e. the predicted value matches the actual value), and the orange cells indicate incorrect classifications. The green and orange color shades correspond to number of values, i.e. darker shades indicate higher numbers. Grey cells indicate that no value is predicted in the corresponding class.
+
+### 1) Linear Discriminant Analysis (LDA)
+#### Table 5 - Confusion Matrix from LDA, Method 1
+```{r message = F, warning=F, out.width='80%'}
+# Confusion matrix Method 1
+cm_lda1 <- as.data.frame(cm_lda1$table)
+cm_lda1$diag <- cm_lda1$Prediction == cm_lda1$Reference
+cm_lda1$ndiag <- cm_lda1$Prediction != cm_lda1$Reference    
+cm_lda1[cm_lda1 == 0] <- NA 
+cm_lda1$Reference <-  fct_rev(cm_lda1$Reference) 
+cm_lda1$ref_freq <- cm_lda1$Freq * ifelse(is.na(cm_lda1$diag),-1,1)
+
+
+plt_lda1 <-  ggplot(data = cm_lda1, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile( data = cm_lda1,aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+options(repr.plot.width = 20, repr.plot.height = 8)
+plt_lda1
+```
+
+This model is the strongest at predicting Sales & service occupation, and the weakest at predicting occupation in Art, culture, recreation & sport, as well as Management. This may be partly due to the number of training data as there were more Sales & service records and limited art records in the training data. 
+
+#### Table 6 - Confusion Matrix from LDA, Method 2
+```{r message = F, warning=F, out.width='80%'}
+# confusion matrix Method 2
+cm_lda2 <- as.data.frame(cm_lda2$table)
+cm_lda2$diag <- cm_lda2$Prediction == cm_lda2$Reference
+cm_lda2$ndiag <- cm_lda2$Prediction != cm_lda2$Reference      
+cm_lda2[cm_lda2 == 0] <- NA 
+cm_lda2$Reference <-  fct_rev(cm_lda2$Reference) 
+cm_lda2$ref_freq <- cm_lda2$Freq * ifelse(is.na(cm_lda2$diag),-1,1)
+
+plt_lda2 <-  ggplot(data = cm_lda2, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile( data = cm_lda2,aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+options(repr.plot.width = 12, repr.plot.height = 8)
+plt_lda2
+```
+
+In comparison to resample method 1, the performance of this model is more consistent overall. The model correctly classified 196 out of 200 records that are in the Manufacturing & utilities occupation, but classified poorly of those in the management occupation.
+
+### 2) K-Nearest Neighbors Classifiers (KNN)
+
+Similar difference between the two resample methods can be found in the KNN model, which is related to how the data was distributed and partitioned. As shown in Table 7 and Table 8 below, KNN using resample method 1 performed the strongest in classifying Sales & service, while resample method 2 is strongest in predicting Manufacturing & utilities. 
+
+#### Table 7 - Confusion Matrix from KNN, Method 1
+```{r message = F, warning=F, out.width='80%'}
+cm_knn_1 <- as.data.frame(cm_knn_1$table)
+cm_knn_1$diag <- cm_knn_1$Prediction == cm_knn_1$Reference 
+cm_knn_1$ndiag <- cm_knn_1$Prediction != cm_knn_1$Reference      
+cm_knn_1[cm_knn_1 == 0] <- NA 
+cm_knn_1$Reference <-  fct_rev(cm_knn_1$Reference) 
+cm_knn_1$ref_freq <- cm_knn_1$Freq * ifelse(is.na(cm_knn_1$diag),-1,1)
+
+plt_knn_1 <-  ggplot(data = cm_knn_1, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile(data = cm_knn_1,aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+plt_knn_1
+```
+
+#### Table 8 - Confusion Matrix from KNN, Method 2
+```{r message = F, warning=F, out.width='80%'}
+# confusion matrix code for knn algorithm model
+cm_knn_2 <- as.data.frame(cm_knn_2$table)
+cm_knn_2$diag <- cm_knn_2$Prediction == cm_knn_2$Reference 
+cm_knn_2$ndiag <- cm_knn_2$Prediction != cm_knn_2$Reference      
+cm_knn_2[cm_knn_2 == 0] <- NA 
+cm_knn_2$Reference <-  fct_rev(cm_knn_2$Reference) 
+cm_knn_2$ref_freq <- cm_knn_2$Freq * ifelse(is.na(cm_knn_2$diag),-1,1)
+
+plt_knn_2 <-  ggplot(data = cm_knn_2, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile(data = cm_knn_2,aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+plt_knn_2
+```
+
+### 3) Classification & Regression Tree (CART)
+
+As shown in Table 9 and 10 below, classification using the CART model performed poorly in general, where both CART models failed to classify 7 out of 10 classes of the target variable. This is likely related to the algorithm and implies that the CART model is not suitable for predicting occupation based on our set variables and training parameters. 
+
+#### Table 9 - Confusion Matrix from CART, Method 1
+```{r message = F, warning=F, out.width='80%'}
+
+# confusion matrix code for CART algorithm model
+cm_cart_1 <- as.data.frame(cm_cart_1$table)
+cm_cart_1$diag <- cm_cart_1$Prediction == cm_cart_1$Reference 
+cm_cart_1$ndiag <- cm_cart_1$Prediction != cm_cart_1$Reference      
+cm_cart_1[cm_cart_1 == 0] <- NA 
+cm_cart_1$Reference <-  fct_rev(cm_cart_1$Reference) 
+cm_cart_1$ref_freq <- cm_cart_1$Freq * ifelse(is.na(cm_cart_1$diag),-1,1)
+
+plt_cart_1 <-  ggplot(data = cm_cart_1, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile( data = cm_cart_1,aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+plt_cart_1
+```
+
+#### Table 10 - Confusion Matrix from CART, Method 2
+```{r message = F, warning=F, out.width='80%'}
+cm_cart_2 <- as.data.frame(cm_cart_2$table)
+cm_cart_2$diag <- cm_cart_2$Prediction == cm_cart_2$Reference 
+cm_cart_2$ndiag <- cm_cart_2$Prediction != cm_cart_2$Reference      
+cm_cart_2[cm_cart_2 == 0] <- NA 
+cm_cart_2$Reference <-  fct_rev(cm_cart_2$Reference) 
+cm_cart_2$ref_freq <- cm_cart_2$Freq * ifelse(is.na(cm_cart_2$diag),-1,1)
+
+plt_cart_2 <-  ggplot(data = cm_cart_2, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile( data = cm_cart_2, aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+plt_cart_2
+```
+
+
+### 4) Support Vector Machine (SVM)
+
+SVM models performed better overall in comparison to other models. As seen in Table 12 below, a minimum of 66 records were classified correctly, while 195 records were correctly classified in the Manufacturing & utilities occupation. 
+
+#### Table 11 - Confusion Matrix from SVM, Method 1
+```{r message = F, warning=F, out.width='80%'}
+
+cm_svm_1 <- as.data.frame(cm_svm_1$table)
+cm_svm_1$diag <- cm_svm_1$Prediction == cm_svm_1$Reference 
+cm_svm_1$ndiag <- cm_svm_1$Prediction != cm_svm_1$Reference      
+cm_svm_1[cm_svm_1 == 0] <- NA 
+cm_svm_1$Reference <-  fct_rev(cm_svm_1$Reference) 
+cm_svm_1$ref_freq <- cm_svm_1$Freq * ifelse(is.na(cm_svm_1$diag),-1,1)
+
+plt_svm_1 <-  ggplot(data = cm_svm_1, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile( data = cm_svm_1,aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+plt_svm_1
+
+```
+
+#### Table 12 - Confusion Matrix from SVM, Method 2
+```{r message = F, warning=F, out.width='80%'}
+cm_svm_2 <- as.data.frame(cm_svm_2$table)
+cm_svm_2$diag <- cm_svm_2$Prediction == cm_svm_2$Reference 
+cm_svm_2$ndiag <- cm_svm_2$Prediction != cm_svm_2$Reference      
+cm_svm_2[cm_svm_2 == 0] <- NA 
+cm_svm_2$Reference <-  fct_rev(cm_svm_2$Reference) 
+cm_svm_2$ref_freq <- cm_svm_2$Freq * ifelse(is.na(cm_svm_2$diag),-1,1)
+
+plt_svm_2 <-  ggplot(data = cm_svm_2, aes(x = Prediction , y =  Reference, fill = Freq))+
+  scale_x_discrete(position = "top") +
+  geom_tile(data = cm_svm_2, aes(fill = ref_freq)) +
+  scale_fill_gradient2(guide = FALSE ,low="red",high="#1bc46a",na.value = '#dee1e3') +
+  geom_text(aes(label = Freq), color = 'black', size = 5)+
+  scale_y_discrete(labels=function(y) str_wrap(y,width=20))+
+  scale_x_discrete(labels=function(x) str_wrap(x,width=20), position="top")+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=-0.1)
+  )
+plt_svm_2
+```
+
+The confusion matrices show that there are various factors that will affect the performance of a predictive models:
+
+* Classification algorithms
+
+There is no conclusive result on the classification performance and accuracy based on the outputs of each predictive model. While some models are stronger at predicting certain classes, the opposite may happen for other models. An example would be classifying the Management occupation, where KNN with stratified samples performed well but LDA with stratified samples performed poorly.
+
+* Training data
+
+How the training data is applied into the model may determine the classification metrics. When comparing the confusion matrices within the same algorithm but with a different data sampling method, we could see that the number of correctly classified variables sometimes corresponds to variable distribution from the training data set.
+
+## Variable Importance
+
+Another aspect of classification model is to determine if and which predictors are prominent in predicting the target variable. Variable importance is calculated differently between a model-free algorithm (LDA, KNN, SVM) and a model-based algorithm (CART, RF). 
+
+Based on information from Figure 13 below, Hourly Earning (`HRLYEARN`) is the most prominent predictor in both model-free algorithms and RF. Industry (`NAICS_21`) is a significant factor in the CART model as well as in model-free algorithms. Immigration Status (`IMMIG`) is the least prominent predictor. In addition, numerical predictors seem to have more weight than categorical predictors in the RF model.
+
+#### Figure 13 - Variable Importance for Each Algorithm
+```{r message = F, warning=F, out.width='90%', fig.height = 7.5}
+# Variable importance
+importance1 <- varImp(fit.lda1)
+importance2 <- varImp(fit.cart1)
+importance3 <- varImp(fit.knn_1)
+
+importance4 <- varImp(fit.lda2)
+importance5 <- varImp(fit.cart_2)
+importance6 <- varImp(fit.knn_2)
+
+importance7 <- varImp(fit.svm1)
+importance8 <- varImp(fit.svm_2)
+
+importance9 <- varImp(fit.rf_1)
+importance10 <- varImp(fit.rf_2)
+
+imp1 <- importance1$importance
+imp2 <- importance2$importance
+imp3 <- importance3$importance
+imp4 <- importance4$importance
+imp5 <- importance5$importance
+imp6 <- importance6$importance
+imp7 <- importance7$importance
+imp8 <- importance8$importance
+imp9 <- importance9$importance
+imp10 <- importance10$importance
+
+lda_imp1 <- imp1 %>% 
+  mutate(Predictor = rownames(imp1)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  group_by(Predictor) %>% 
+  summarise_at(vars(Importance), list(Importance = mean)) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("Model-Free (LDA,KNN,SVM) Method 1")+
+  xlab("")
+
+cart_imp1 <- imp2 %>% 
+  mutate(Predictor = rownames(imp2)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  arrange(desc(Importance)) %>% 
+  top_n(6) %>%
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("CART Method 1")+
+  xlab("")
+
+knn_imp1 <- imp3 %>% 
+  mutate(Predictor = rownames(imp3)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  group_by(Predictor) %>% 
+  summarise_at(vars(Importance), list(Importance = mean)) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("K-Nearest Neighbors Method 1")+
+  xlab("")
+
+lda_imp2 <- imp4 %>% 
+  mutate(Predictor = rownames(imp4)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  group_by(Predictor) %>% 
+  summarise_at(vars(Importance), list(Importance = mean)) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("Model-Free (LDA,KNN,SVM) Method 1")+
+  xlab("")
+
+cart_imp2 <- imp5 %>% 
+  mutate(Predictor = rownames(imp5)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  arrange(desc(Importance)) %>% 
+  top_n(6) %>%
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("CART Method 2")+
+  xlab("")
+
+knn_imp2 <- imp6 %>% 
+  mutate(Predictor = rownames(imp6)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  group_by(Predictor) %>% 
+  summarise_at(vars(Importance), list(Importance = mean)) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("K-Nearest Neighbors Method 2")+
+  xlab("")
+
+svm_imp1 <- imp7 %>% 
+  mutate(Predictor = rownames(imp7)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  group_by(Predictor) %>% 
+  summarise_at(vars(Importance), list(Importance = mean)) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("Support Vector Machine Method 1")+
+  xlab("")
+
+svm_imp2 <- imp8 %>% 
+  mutate(Predictor = rownames(imp8)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  group_by(Predictor) %>% 
+  summarise_at(vars(Importance), list(Importance = mean)) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("Support Vector Machine Method 2")+
+  xlab("")
+
+rf_imp1 <- imp9 %>% 
+  mutate(Predictor = rownames(imp9)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  arrange(Importance) %>% 
+  top_n(10) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("RF Method 1")+
+  xlab("")
+
+rf_imp2 <- imp10 %>% 
+  mutate(Predictor = rownames(imp10)) %>% 
+  pivot_longer(names_to = "NOC_10", values_to = "Importance", -Predictor) %>%
+  arrange(Importance) %>% 
+  top_n(10) %>% 
+  ggplot(aes(x=Predictor, y=Importance))+
+  geom_segment(aes(x=Predictor, xend=Predictor, y=0, yend=Importance), color="skyblue") +
+  geom_point(color="blue", size=4, alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 10))+
+  ylab("RF Method 2")+
+  xlab("")
+
+grid.arrange(lda_imp1,lda_imp2,cart_imp1,cart_imp2,rf_imp1,rf_imp2,nrow=3)
+```
+
+The result aligns with our expectation. As noted in the Exploratory Data Analysis section, many occupations, such as health, are directly related to the industry of work. As shown in Figure 8, the hourly earnings vary across different occupations, providing separability which helps the classification process.  
+
+
+## Refine the Model
+
+The `IMMIG` variable is ranked low across all variable importance, we can therefore try to refine the model by removing the insignificant variable. We will use the SVM algorithm using method 2 since it was the most accurate model, and test if the accuracy can be improved. 
+
+#### Table 13 - Accuracy Comparison
+```{r message = F, warning=F}
+set.seed(5)
+lfs_sample_noImmi <- lfs_sample2 %>% select(-c('IMMIG'))
+fit.svm_new <-train(NOC_10~.,data=lfs_sample_noImmi,method='svmRadial',metric=metric,trControl=control)
+predictions_svm_new <- predict(fit.svm_new, validation_2)
+cm_svm_new <- confusionMatrix(predictions_svm_new, as.factor(validation_2$NOC_10))
+
+# Comparing accuracy
+Original <- fit.svm_2$results$Accuracy
+Refined <- fit.svm_new$results$Accuracy
+Original_Accuracy <- mean(Original)
+Refined_Accuracy <- mean(Refined)
+svm_compare <- data.frame(Original_Accuracy, Refined_Accuracy)
+svm_compare
+```
+
+As seen in Table 13, the refined mean accuracy did not improve as expected for this particular model. To increase the predictive model's classification performance and accuracy, more research and data exploration will be needed.
+
+---
+
+# Conclusion
+
+Our analysis aimed to predict occupation type (`NOC_10`) using the variables available in the LFS dataset. In order to do this effectively, we needed to carefully examine the relationships between `NOC_10` and the other variables, and determine which ones were most important for our predictive modeling. We also had to consider which variables provided useful information, and which ones might be considered "noise" that could affect the accuracy of our predictions.
+
+As a result of our investigation, we have come to the view that it is not possible to confidently determine a personas occupation type based on the available predictors. This is likely due to the complex and varied nature of modern occupations, which cannot be accurately captured by a single algorithm or model. Our findings underline the need for additional study in this field to advance our knowledge of the variables influencing occupation type and enable more precise forecasts in the future.
+
+---
+
+# Acknowledgement
+
+The Labour Force Survey dataset from October 2022 was downloaded as a '.zip' package from the Statistics Canada website <https://www150.statcan.gc.ca/n1/pub/71m0001x/71m0001x2021001-eng.htm> on November 23, 2022. Use of the product is governed by the Statistics Canada Open Licence Agreement. 
+
+This report is produced as a portion of the requirements of the Geospatial Data Analytics Graduate Certificate program at the Centre of Geographic Sciences, NSCC, Lawrencetown, NS.
